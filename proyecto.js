@@ -1,9 +1,11 @@
-//Manipulación del DOM
+//Manejo y recuperación del DOM
 const formulario = document.getElementById("formulario")
 const inputNombre = document.getElementById("nombre")
 const inputApellido = document.getElementById("apellido")
+const tituloPrincipal = document.getElementById("tituloPrincipal")
 const titulo = document.getElementById("titulo")
-const divProductos = document.getElementById("divProductos")
+const divProducts = document.getElementById("productos")
+const finishButton = document.getElementById("finalizar")
 
 //guardando información en el storage
 formulario.onsubmit=(e)=>{
@@ -23,79 +25,122 @@ if(infoUsuario){
     formulario.remove()
     titulo.innerText = `Bienvenido ${infoUsuarioJS.nombre} ${infoUsuarioJS.apellido}`
 }
-//clase de productos
-class Producto {
-    constructor(nombre, id, precio,image) {
-        this.nombre = nombre
-        this.id = id
-        this.precio = precio
-        this.image = image
+
+//Función para ejecutar el fetch
+const fetchProducts = async()=>{
+    const productsApi = await fetch ('https://fakestoreapi.com/products')
+    const productsJSON = await productsApi.json()
+    //console.log(productsJSON);
+    return productsJSON
+}
+const fetchOneProduct = async (id)=>{
+    const productApi = await fetch (`https://fakestoreapi.com/products/${id}`)
+    const productJSON = await productApi.json()
+    //console.log(productsJSON);
+    return productJSON
+}
+
+
+//función para renderizar productos
+
+const renderProducts = async()=>{
+    const products = await fetchProducts()
+    products.forEach((prod)=>{
+        const {id,title,price,category,image} = prod
+        divProducts.innerHTML += `
+        <div class="card cardProduct">
+          <img src="${image}" class="card-img-top" alt="...">
+          <div class="card-body">
+          <h5 class="card-title">${title}</h5>
+          <p class="card-text">${price} ${category}</p>
+          <button id=${id} onclick="addProduct(${id})">Add</button>
+          <button id=${id} onclick="removeProduct(${id})">Remove</button>
+        </div>
+        </div>`
+    })
+}
+renderProducts()
+//diseño del carrito
+
+let cart = []
+
+const addProduct = async(id)=>{
+    const product = await fetchOneProduct(id)
+    const searchProductCart = cart.find((prod) => prod.id === product.id)
+    if (!searchProductCart){
+        cart.push({
+            id:product.id,
+            name:product.title,
+            quantity:1,
+            price:product.price
+        })
+    } else{
+        searchProductCart.quantity++
     }
-};
-// Guardar productos en un arreglo
-const playeras = new Producto("playeras", 1, 300);
-const figuras = new Producto("figuras", 2, 800);
-const accesorios = new Producto("accesorios", 3, 500);
-const tazas = new Producto("tazas", 4, 50);
+    messageAdd()
+    console.log(cart)
+} 
 
-const Productos = [playeras,figuras,accesorios,tazas]
-Productos.forEach(prod=>{
-divProductos.innerHTML += `<div class="card cardProduct">
-<div class="card-body">
-  <h5 class="card-title">${prod.nombre}</h5>
-  <p class="card-text">${prod.precio}</p>
-  <button id=${prod.id} class="btn btn-primary">Agregar</button>
-</div>
-</div>`
-})
-
-// creación del carrito usando información del storage
-const carrito = []
-const botonesAgregar = document.querySelectorAll(".btn-primary")
-botonesAgregar.forEach(boton=>{
-    boton.onclick = ()=>{
-        const producto = Productos.find(p=>p.id===parseInt(boton.id))
-        const productoCarrito = {
-            id: producto.id,
-            nombre: producto.nombre,
-            precio: producto.precio,
-            cantidad: 1,
-        }
-
-        const prodEnCarrito = carrito.find(prod=>prod.id===productoCarrito.id)
-        if (!prodEnCarrito){
-            carrito.push(productoCarrito)
-        } else{
-            prodEnCarrito.cantidad++
-        }
-         
-        
-        console.log(carrito)
+const removeProduct = (id)=>{
+    const searchProductCart = cart.find((prod) => prod.id === id)
+    if (!searchProductCart){
+        messageNoProd()
+    } else{
+        if (searchProductCart.quantity===1){
+            cart = cart.filter((prod) => prod.id !==id)
+        } else {
+        searchProductCart.quantity--
+         }
+         messageRemove()
     }
-})
+console.log(cart)
+}
+
+const messageAdd = ()=>{
+    Swal.fire ({
+        text: "Product added",
+        timer: 1000
+        }) 
+}
+const messageRemove = ()=>{
+    Swal.fire ({
+        text: "Product removed",
+        timer: 1000
+        }) 
+}
+
+
+const messageNoProd = ()=>{
+    Swal.fire ({
+        text: "Your cart is empty",
+        timer: 1000
+        }) 
+}
+
 //creacion del botón finalizar con manejo del DOM y el cálculo del total de la compra con tabla 
 const botonFinalizar = document.querySelector("#finalizar")
 const thead = document.querySelector("#thead")
 const tbody = document.querySelector("#tbody")
 const parrafoTotal = document.querySelector("#total")
 botonFinalizar.onclick = ()=>{
-divProductos.remove()
+divProducts.remove()
 botonFinalizar.remove()
 thead.innerHTML = `^<tr>
 <th scope="col">Producto</th>
 <th scope="col">Cantidad</th>
 <th scope="col">Total</th>
 </tr>`
-let totalCompra = 0
-carrito.forEach(prod=>{
-    totalCompra+= prod.cantidad*prod.precio
+
+let total = 0
+cart.forEach(prod=>{
+    total+= prod.quantity*prod.price
     tbody.innerHTML+= `
     <tr>
-        <td>${prod.nombre}</td>
-        <td>${prod.cantidad}</td>
-        <td>${prod.cantidad*prod.precio}</td>
+        <td>${prod.name}</td>
+        <td>${prod.quantity}</td>
+        <td>${prod.quantity*prod.price}</td>
    <tr>
   `
 })
-    parrafoTotal.innerText = `el total de tu compra es ${totalCompra}`
+    parrafoTotal.innerText = `el total de tu compra es ${total}`
 }
